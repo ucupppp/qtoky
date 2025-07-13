@@ -4,6 +4,7 @@ use actix_web::{
     error::{JsonPayloadError, PayloadError, UrlencodedError},
     http::StatusCode,
 };
+use log::{warn, error};
 use serde::Serialize;
 use thiserror::Error;
 use validator::ValidationErrors;
@@ -43,13 +44,34 @@ struct ErrorResponse {
 impl ResponseError for ApiError {
     fn error_response(&self) -> HttpResponse {
         let (status_code, message) = match self {
-            ApiError::InternalError(_) => (500, self.to_string()),
-            ApiError::NotFound(_) => (404, self.to_string()),
-            ApiError::BadRequest(_) => (400, self.to_string()),
-            ApiError::Conflict(_) => (409, self.to_string()),
-            ApiError::ValidationError(_) => (422, self.to_string()),
-            ApiError::Unauthorized(_) => (401, self.to_string()),
-            ApiError::Forbidden(_) => (403, self.to_string()),
+            ApiError::InternalError(msg) => {
+                error!("[500 INTERNAL] {}", msg);
+                (500, self.to_string())
+            }
+            ApiError::NotFound(msg) => {
+                warn!("[404 NOT FOUND] {}", msg);
+                (404, self.to_string())
+            }
+            ApiError::BadRequest(msg) => {
+                warn!("[400 BAD REQUEST] {}", msg);
+                (400, self.to_string())
+            }
+            ApiError::Conflict(msg) => {
+                warn!("[409 CONFLICT] {}", msg);
+                (409, self.to_string())
+            }
+            ApiError::ValidationError(msg) => {
+                warn!("[422 VALIDATION] {}", msg);
+                (422, self.to_string())
+            }
+            ApiError::Unauthorized(msg) => {
+                warn!("[401 UNAUTHORIZED] {}", msg);
+                (401, self.to_string())
+            }
+            ApiError::Forbidden(msg) => {
+                warn!("[403 FORBIDDEN] {}", msg);
+                (403, self.to_string())
+            }
         };
 
         let response = ErrorResponse {
