@@ -18,7 +18,6 @@ pub async fn post_sale_handler(
     payload: Result<Json<SaleDTO>, ActixError>,
     db: Data<Database>,
 ) -> Result<HttpResponse, ApiError> {
-    println!("LOGG{:?}", &payload);
     let user_id_str = extract_user_id_from_cookie(&req)?;
     let data = payload?.into_inner();
     data.validate()?;
