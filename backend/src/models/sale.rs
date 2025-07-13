@@ -2,6 +2,7 @@ use crate::utils::{object_id_as_string, opt_object_id_as_string};
 use mongodb::bson::{DateTime, oid::ObjectId};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+use super::payment_method::PaymentMethod;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SaleItem {
@@ -11,8 +12,7 @@ pub struct SaleItem {
     pub sku: String,
     pub quantity: i32,
     pub price: f64,
-    pub discount: f64,
-    pub subtotal: f64,
+    pub subtotal: f64
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,8 +30,6 @@ pub struct Sale {
     pub items: Vec<SaleItem>,
 
     pub total_amount: f64,
-    pub discount_total: f64,
-    pub final_amount: f64,
 
     pub paid_amount: f64,
     pub remaining_amount: f64,
@@ -39,8 +37,7 @@ pub struct Sale {
 
     pub invoice_number: Option<String>,
 
-    #[serde(serialize_with = "opt_object_id_as_string")]
-    pub payment_method_id: Option<ObjectId>,
+    pub payment_method: Option<PaymentMethod>,
     pub sale_date: Option<DateTime>,
     pub notes: Option<String>,
 
@@ -56,12 +53,6 @@ pub struct SaleItemDTO {
 
     #[validate(range(min = 1, message = "Jumlah item minimal 1"))]
     pub quantity: i32,
-
-    #[validate(range(min = 100.0, message = "Harga minimal 100"))]
-    pub price: Option<f64>,
-
-    #[validate(range(min = 0.0, message = "Diskon tidak boleh negatif"))]
-    pub discount: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -93,15 +84,13 @@ pub struct SaleResponse {
     pub items: Vec<SaleItem>,
 
     pub total_amount: f64,
-    pub discount_total: f64,
-    pub final_amount: f64,
 
     pub paid_amount: f64,
     pub remaining_amount: f64,
     pub status: String,
 
     pub invoice_number: Option<String>,
-    pub payment_method_id: Option<String>,
+    pub payment_method: Option<PaymentMethod>,
     pub sale_date: Option<String>,
     pub notes: Option<String>,
 
@@ -121,15 +110,13 @@ impl From<Sale> for SaleResponse {
             items: sale.items,
 
             total_amount: sale.total_amount,
-            discount_total: sale.discount_total,
-            final_amount: sale.final_amount,
 
             paid_amount: sale.paid_amount,
             remaining_amount: sale.remaining_amount,
             status: sale.status,
 
             invoice_number: sale.invoice_number,
-            payment_method_id: sale.payment_method_id.map(|id| id.to_hex()),
+            payment_method: sale.payment_method,
             sale_date: sale.sale_date.map(|t| t.to_chrono().to_rfc3339()),
             notes: sale.notes,
 

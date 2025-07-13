@@ -1,4 +1,5 @@
 use crate::models::product::Product;
+use log::error;
 use crate::errors::ServiceError;
 use futures::stream::TryStreamExt;
 use crate::utils::{handle_duplicate_key_error, string_id_to_obj_id};
@@ -6,6 +7,7 @@ use bson::datetime::DateTime as BsonDateTime;
 use chrono::Utc;
 use mongodb::{Collection, Database, bson::doc};
 use crate::models::sale::{Sale, SaleItem, SaleDTO};
+use crate::models::payment_method::{PaymentMethod};
 
 pub async fn get_sales_service(db: &Database, id:&str) -> Result<Vec<Sale>, ServiceError>{
     let user_id = match string_id_to_obj_id(id) {
@@ -53,7 +55,6 @@ pub async fn create_sale_service(
     
     let product_collection: Collection<Product> = db.collection("products");
     let mut sale_items: Vec<SaleItem> = Vec::new();
-    let mut discount_total = 0.0;
     let mut total_amount = 0.0;
     
     for item_dto in &payload.items {
@@ -66,30 +67,9 @@ pub async fn create_sale_service(
             .map_err(|e| ServiceError::DatabaseError(e.to_string()))?
             .ok_or_else(|| ServiceError::NotFound("Produk tidak ditemukan".to_string()))?;
         
-        let actual_price = product.price; // Harga dari database
+        let actual_price = product.price;
         
-        if let Some(frontend_price) = item_dto.price {
-            let price_diff = (frontend_price - actual_price).abs();
-            if price_diff > 0.01 {
-                // Log untuk debugging, tapi tetap pakai harga database
-                eprintln!("Warning: Price mismatch for product {}: frontend={}, db={}", 
-                         product.name, frontend_price, actual_price);
-            }
-        }
-        
-        let discount = item_dto.discount.unwrap_or(0.0);
-        
-        let max_discount = actual_price * item_dto.quantity as f64;
-        let validated_discount = if discount > max_discount {
-            eprintln!("Warning: Discount {} exceeds item total {}", discount, max_discount);
-            0.0 // Reset discount jika berlebihan
-        } else {
-            discount
-        };
-        
-        // Gunakan harga database untuk kalkulasi
-        let subtotal = (actual_price * item_dto.quantity as f64) - validated_discount;
-        discount_total += validated_discount;
+        let subtotal = actual_price * item_dto.quantity as f64;
         total_amount += subtotal;
         
         sale_items.push(SaleItem {
@@ -97,14 +77,38 @@ pub async fn create_sale_service(
             product_name: product.name,
             sku: product.sku,
             quantity: item_dto.quantity,
-            price: actual_price, // 🔐 Simpan harga dari database
-            discount: validated_discount,
-            subtotal,
+            price: product.price,
+            subtotal
         });
     }
-    
-    let final_amount = total_amount - discount_total;
-    let remaining_amount = final_amount - payload.paid_amount;
+
+    let payment_method: Option<PaymentMethod>;
+    let pm_collection: Collection<PaymentMethod> = db.collection("payment_methods");
+
+    let payment_method = match &payload.payment_method_id {
+        Some(payment_method_id) => {
+            let found_method = pm_collection
+                .find_one(doc! { "_id": payment_method_id.clone() })
+                .await
+                .map_err(|e| ServiceError::DatabaseError(e.to_string()))?
+                .ok_or_else(|| ServiceError::NotFound(format!(
+                    "Metode Pembayaran dengan ID '{}' tidak ditemukan",
+                    payment_method_id
+                )))?;
+
+            if !found_method.is_active {
+                return Err(ServiceError::BadRequest(
+                    "Metode Pembayaran sedang tidak aktif".to_string(),
+                ));
+            }
+
+            Some(found_method)
+        }
+        None => None,
+    };
+
+    let final_amount = total_amount;
+    let remaining_amount = total_amount - payload.paid_amount;
     let now = BsonDateTime::from_chrono(Utc::now());
     
     let sale = Sale {
@@ -113,8 +117,6 @@ pub async fn create_sale_service(
         customer_id: payload.customer_id.clone(),
         items: sale_items,
         total_amount,
-        discount_total,
-        final_amount,
         paid_amount: payload.paid_amount,
         remaining_amount,
         status: if remaining_amount <= 0.0 {
@@ -125,7 +127,7 @@ pub async fn create_sale_service(
             "unpaid".to_string()
         },
         invoice_number: None,
-        payment_method_id: payload.payment_method_id.clone(),
+        payment_method,
         sale_date: Some(now.clone()),
         notes: payload.notes.clone(),
         created_at: Some(now.clone()),
