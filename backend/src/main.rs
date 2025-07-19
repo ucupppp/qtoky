@@ -17,6 +17,7 @@ async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().ok();
     let port = std::env::var("PORT").unwrap_or("7878".to_string());
 
+    // rewrite history hehehehe :)
     let db_client = db::mongo::init_db().await.expect("Failed to initialize db");
     unsafe {
         std::env::set_var("RUST_LOG", "info");
