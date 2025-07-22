@@ -35,7 +35,7 @@ pub async fn post_sale_handler(
     let user_id_str = extract_user_id_from_cookie(&req)?;
     let data = payload?.into_inner();
     data.validate()?;
-
+    // check
     let sale = create_sale_service(data, &db, &user_id_str).await?;
 
     Ok(HttpResponse::Created().json({
@@ -46,3 +46,5 @@ pub async fn post_sale_handler(
         })
     }))
 }
+
+
