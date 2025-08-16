@@ -1,4 +1,4 @@
-use crate::utils::{opt_object_id_as_string};
+use crate::utils::{opt_object_id_as_string, default_is_active};
 use mongodb::bson::oid::ObjectId;
 use serde::{Serialize, Deserialize};
 use validator::Validate;
@@ -19,6 +19,9 @@ pub struct PaymentMethod {
 
 #[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct PaymentMethodDTO {
+    #[validate(length(min = 1, message = "Kolom name wajib diisi!"))]
     pub name: String,
+    #[serde(default = "default_is_active")]
     pub is_active: bool
 }
+

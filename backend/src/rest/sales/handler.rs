@@ -27,6 +27,17 @@ pub async fn get_sales_handler(
     })))
 }
 
+pub async fn get_sale_handler(
+    req: HttpRequest,
+    db: Data<Database>,
+    path: Path<String>,
+) -> Result<HttpResponse, ApiError> {
+    // let sale_id = path.into_inner();
+    // let user_id_str = extract_user_id_from_cookie(&req)?;
+    // let product = get_sale_service();
+}
+
+
 pub async fn post_sale_handler(
     req: HttpRequest,
     payload: Result<Json<SaleDTO>, ActixError>,
@@ -35,7 +46,7 @@ pub async fn post_sale_handler(
     let user_id_str = extract_user_id_from_cookie(&req)?;
     let data = payload?.into_inner();
     data.validate()?;
-    // check
+
     let sale = create_sale_service(data, &db, &user_id_str).await?;
 
     Ok(HttpResponse::Created().json({
@@ -46,5 +57,3 @@ pub async fn post_sale_handler(
         })
     }))
 }
-
-

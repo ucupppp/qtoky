@@ -107,7 +107,7 @@ pub async fn create_sale_service(
         None => None,
     };
 
-    let final_amount = total_amount;
+    // let final_amount = total_amount;
     let remaining_amount = total_amount - payload.paid_amount;
     let now = BsonDateTime::from_chrono(Utc::now());
     
