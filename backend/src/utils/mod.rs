@@ -101,3 +101,8 @@ pub fn extract_user_id_from_cookie(req: &HttpRequest) -> Result<String, ServiceE
     }
     Ok(decoded.claims.sub) // atau decoded.claims.user_id
 }
+
+fn default_is_active() -> bool {
+    true
+}
+
